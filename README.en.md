@@ -1,0 +1,178 @@
+# QQ ↔ DeepSeek Harness Bridge (nexp)
+
+> Connect QQ messages to DeepSeek Harness (DSH) agents: QQ friends/groups become DSH conversations, and agent replies (including questions and tool approvals) are sent back to QQ.
+
+> ⚠️ Baseline: upstream `v0.1.7` with 25 local patches; the package version is in `package.json`.
+> Upstream release history and notes are maintained in the upstream repository, not here.
+>
+> **This repository is sanitised**: private data (real memory store, runtime logs, token ledger,
+> persona cards, configs containing secrets) has been removed, secrets are placeholders, and the
+> deploy scripts read `APP_DIR` / `DATA_DIR` from the environment. See "Differences in this fork" below.
+>
+> The default branch `main` **is** this version — a plain `git clone` gets it, no branch switching needed.
+
+The documentation index (one line per doc, with "still current?" notes) is **[docs/README.md](docs/README.md)**;
+the repository/folder and script-naming conventions are in **[docs/FOLDER_MAP.md](docs/FOLDER_MAP.md)**.
+
+## Differences in this fork
+
+Three kinds of change on top of qq-bridge `v0.1.7`:
+
+| Kind | What |
+|---|---|
+| **Rename** | The fork drops the `qq-bridge` name: directory, package name, systemd units, `NEXP_*` env vars. Remaining `qq-bridge` mentions are limited to the upstream LICENSE copyright line, upstream links, and provenance notes |
+| **Sanitisation** | Removed: the real memory store and chat logs (`state/`), runtime logs and the token ledger, personal persona cards, `config.json` / `cordis.patch.yml` containing plaintext secrets, personal audio. Secrets became `<REDACTED_*>`, QQ/group IDs became placeholders, deploy scripts read `APP_DIR` / `DATA_DIR` from the environment |
+| **Added components** | `nexp-memory/` (standalone file-based memory library, zero dependencies), `patches/` (12 idempotent patch scripts), `deploy/` (start scripts and systemd units), `agent-presets/`, `dsh-home/` |
+
+> The `<REDACTED_*>` values in `deploy/start-dsh.sh` and `deploy/start-bridge.sh` **must be replaced with your
+> own keys**, otherwise startup fails — that is intentional; they used to hold plaintext credentials.
+
+## Architecture
+
+```
+QQ messages ──► SnowLuma (OneBot v11 WS) ──► nexp ──► DSH Web API (127.0.0.1:3080/api)
+                                                    ▲                      │
+                                                    └── agent replies / questions / approvals ┘
+```
+
+- **QQ side**: `@snowluma/sdk` provides the OneBot v11 WebSocket client.
+- **DSH side**: adapted for DSH 0.1.2+ and re-verified on 0.1.5 — launch-token Cookie auth, `/api/<namespace>/<method>` slash RPC, and `/api/remote.mux` + `session/follow` event stream. The per-session model is pinned by the bridge via `session.selectModel` from `config.json`'s `dsh.model` (default `deepseek-flash` = DeepSeek-V41-Flash, multimodal).
+- **Agent tools**: safe MCP servers expose a restricted QQ toolset (`qq_status`, `qq_list_groups`, `qq_get_group_history`, `qq_send_group_message`, `qq_reply`, etc.) plus an admin-only host server (`snowluma_status`, and `start_snowluma`/`stop_snowluma` when `snowluma.allowProcessControl` is enabled).
+- **Console**: a local web console at `http://127.0.0.1:3100`, organised into ten task-based pages (Overview, Sessions & Approvals, Persona, Social v2, Social v1, Slang, Usage & Cost, Access & Security, Operations, Tool Reference) with cross-page feature search and a **light / dark theme** (one-click toggle in the header; follows the OS preference until you choose), for mode switching, role management, whitelist/admin settings, slang management, memory, stickers and more. The Persona page manages roles (view/edit/rename/duplicate/delete the prompt of each persona), shows and edits both prompt layers separately — the **simulation prompt** built into the preset (tool/behaviour protocol; synced to DSH, restart required) and the **persona prompt** (`roles/*.md`; applied immediately) — and sets the **DSH reasoning effort** (`max` by default, `high`/`low` selectable). The **Usage & Cost** page shows real-time token consumption and its price in CNY, broken down per group/friend and per conversation turn (see [docs/guides/TOKEN_USAGE_CONSOLE.md](docs/guides/TOKEN_USAGE_CONSOLE.md)).
+
+## Features
+
+- Bridges QQ group/private messages to DSH agent sessions.
+- Social simulation mode ("simulated group friend") with idle/active/probing/exiting states.
+- Space-based message splitting for more natural multi-message replies.
+- Whitelist/blacklist access control, fail-closed by default.
+- Sensitive text audit prevents paths/credentials from being sent to QQ.
+- MCP tools for reading group history/members, sending messages, replying with quotes, and (in `reserved2`) full simulated-group-friend tooling.
+- Slang/network-expression learning with human confirmation.
+- Lightweight memory system for active topics, pending thoughts and member impressions.
+- Sticker library integration with AI-friendly sticker usage.
+
+## Requirements
+
+- Node.js >= 22.13
+- Running DeepSeek Harness Web (default `http://127.0.0.1:3080`)
+- Running SnowLuma with OneBot v11 WebSocket and HTTP API enabled
+
+## Quick Start
+
+```bash
+npm install        # postinstall automatically patches the @snowluma/sdk ESM packaging bug
+```
+
+Copy `config.example.json` to `config.json`, then edit:
+
+```bash
+cp config.example.json config.json
+```
+
+Key settings:
+
+| Field | Description |
+| --- | --- |
+| `dsh.baseUrl` | DSH Web API URL, default `http://127.0.0.1:3080` |
+| `dsh.authToken` | DSH launch token used to exchange for a browser-session cookie in DSH 0.1.2. Leave empty to auto-discover from `~/.dsh/guard/logs/server-*.out.log`; the bridge also re-discovers it automatically after a DSH restart / 401 |
+| `dsh.authHeader` / `dsh.authPrefix` | Legacy fields kept for compatibility; the current DSH 0.1.2 path uses Cookie exchange and does not send this header |
+| `snowluma.wsUrl` | SnowLuma OneBot **WebSocket** URL (e.g. `ws://127.0.0.1:3001`) |
+| `snowluma.accessToken` | OneBot access token, leave empty if not configured |
+| `snowluma.httpUrl` | OneBot **HTTP API** URL (e.g. `http://127.0.0.1:3000`); do not point this at the WebSocket port or you will get HTTP 426 |
+| `ownerQQ` | Administrator QQ (highest privilege) |
+| `allow.private` / `allow.groups` | Whitelist of QQ/group IDs |
+| `consolePort` | Local console port, default `3100` |
+
+Start:
+
+```bash
+npm start
+```
+
+Or double-click `start.bat` on Windows (guard mode with auto-restart).
+
+## DSH Setup on Another Device
+
+The bridge and console can run without extra DSH setup, but the two DSH chat presets (`qq-chat` and `qq-chat-v2`) and the MCP servers must be installed into DSH once per machine:
+
+```bash
+node scripts/setup-dsh.mjs
+```
+
+This installs:
+
+- `~/.dsh/.agent-presets/qq-chat` and `~/.dsh/.agent-presets/qq-chat-v2`
+- MCP entries in `~/.dsh/profiles/web/cordis.patch.yml`
+- `qq-mode-console` in the profile `package.json`
+- Default DSH mode set to `reserved2` (second-generation simulation), with a local `state/mode.json` fallback
+
+Then restart DSH. See [docs/guides/DSH_SETUP.md](docs/guides/DSH_SETUP.md) for details.
+
+## Security Notes
+
+- `config.json` and `state/` are **never committed**; the repository only ships `config.example.json`.
+- MCP send tools enforce whitelist checks and reject CQ-code injection.
+- Local paths, credentials, tokens and other sensitive patterns are filtered by the audit layer.
+- Process control for SnowLuma (`start_snowluma` / `stop_snowluma`) is disabled by default and only allowed in `closed-agent` mode when explicitly enabled.
+- The console uses a generated token when none is configured.
+
+## Repository Layout
+
+```
+nexp/
+  README.md / README.en.md / RULES.md / LICENSE   # root docs and security rules
+  config.example.json   # sanitized config template (real config.json is not in repo)
+  package.json / package-lock.json
+  src/                  # bridge core
+    bridge.js           # main program
+    dsh-client.js       # DSH API client for Node (WS downstream)
+    md-to-plain.js      # Markdown -> plain QQ text
+    self-test.js        # DSH-side self test
+    memory-*.js         # memory layer (copied in from nexp-memory/ by the patches)
+    mcp-*.js            # the three MCP servers (snowluma / host / web-search)
+    core/               # session routing
+  scripts/              # tests and helper scripts (incl. postinstall patch-snowluma-sdk.mjs)
+  public/console.html   # local web console page
+  docs/
+    README.md           # documentation index (one line per doc + "still current?" notes)
+    FOLDER_MAP.md       # folder layout and scripts/ naming conventions
+    guides/             # user/operator facing: DSH_SETUP / TOKEN_USAGE_CONSOLE /
+                        #   CONSOLE-UI-TESTING / PRIVACY / SECURITY_BASELINE
+  roles/                # persona cards (file name = role name)
+  dsh/agent-presets/    # qq-chat / qq-chat-v2 DSH agent preset templates
+  plugins/              # DSH plugins: qq-mode-console / qq-agent-presets
+  assets/               # images (the intro video ships as an upstream release asset)
+  state/                # runtime data (not in repo)
+
+  # components added by this fork
+  nexp-memory/          # standalone memory library: store / retrieval / archive, zero deps, MIT
+  patches/              # 12 idempotent patch scripts (wire the memory layer and tools into upstream)
+  deploy/               # start scripts, systemd units, health check, patched source snapshots
+  agent-presets/        # DSH preset sources (qq-chat / qq-chat-v2)
+  dsh-home/             # DSH config fragments
+```
+
+The standalone **voice sender tool** (`voice-cli.mjs`, `voice-gui.mjs`, `public/voice.html`, `发语音.cmd`)
+is developed in a sibling folder and is **not shipped in this repository**; the AI-side voice tool
+(`qq_send_voice`) is included here and disabled by default.
+
+## Testing
+
+`npm run test:audit` runs isolated regression tests without production credentials, DSH, or QQ messages. The privacy/redaction rules used by this fork are documented in [docs/guides/PRIVACY.md](docs/guides/PRIVACY.md); the security baseline is in [docs/guides/SECURITY_BASELINE.md](docs/guides/SECURITY_BASELINE.md).
+
+After upgrading, legacy QQ session mappings without permission metadata are recreated once. Mode or preset changes also retire the old mapping and recreate the session on the next message; DSH history is retained.
+
+```bash
+npm run self-test       # DSH-side link test, no QQ/SnowLuma required
+npm run test-md
+npm run test-wait
+npm run test-vision
+npm run test-forward
+npm run test-slang
+npm run test-stickers
+```
+
+## Compliance
+
+SnowLuma is an independent third-party project and is not affiliated with Tencent/QQ. This project is for learning and technical research only; please follow the relevant terms and the QQ User Agreement.

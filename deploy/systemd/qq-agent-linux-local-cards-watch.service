@@ -1,0 +1,17 @@
+[Unit]
+Description=QQ Agent local patches watcher (60s safety net for the auto-update overwrite)
+
+[Service]
+Type=simple
+# %h = 部署用户主目录。部署在别处请改成绝对路径。
+# 依赖 <DATA_DIR>/qq-agent/local/bin/local-cards-watch.sh，本仓库不含该脚本。
+ExecStart=/bin/bash %h/qq-agent/local/bin/local-cards-watch.sh
+Restart=always
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+Nice=19
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,8 @@
+node_modules/
+*.log
+.DS_Store
+
+# 真实记忆数据与迁移产物，绝不入库
+state/
+migrate/
+*.local.mjs

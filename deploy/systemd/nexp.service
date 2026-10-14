@@ -1,0 +1,16 @@
+[Unit]
+Description=nexp（QQ ↔ DeepSeek Harness 桥接）
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 部署位置：默认 $HOME/nexp。装在别处请改这两行（systemd 不认环境变量文件里的 shell 写法）
+WorkingDirectory=%h/nexp
+ExecStart=%h/nexp/deploy/start-bridge.sh
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,19 @@
+{
+  "name": "dsh-profile-web",
+  "private": true,
+  "dependencies": {
+    "qq-mode-console": "link:../plugins/qq-mode-console",
+    "qq-agent-presets": "link:../plugins/qq-agent-presets"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "qq-mode-console",
+        "qq-agent-presets"
+      ],
+      "patchReload": "live"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+# nexp 本地补丁后的权威快照（升级上游后拷回并重启即可）
+# 最后更新: 2026-10-13（记忆框架 4 环全部上线）
+
+# 恢复:
+#   cp snapshots/bridge.js.patched        src/bridge.js
+#   cp snapshots/mcp-snowluma-safe.js.patched src/mcp-snowluma-safe.js
+#   cp snapshots/memory-framework/*.js    src/
+#   node --check src/bridge.js
+#   systemctl --user restart nexp-dsh.service && sleep 25 && systemctl --user restart nexp.service
+
+# 记忆框架的源在 nexp-memory/（可开源；migrate/ 含私人数据勿提交）
+
+81fd8f2ed1039925…    615755 B  snapshots/bridge.js.patched
+f3752f8ee4182fc3…     74350 B  snapshots/mcp-snowluma-safe.js.patched
+325ee41e8debbbd5…     11021 B  snapshots/memory-framework/memory-archive.js
+c35cae5e835bc648…     15065 B  snapshots/memory-framework/memory-retrieval.js
+52b5835ac5b6869c…     13483 B  snapshots/memory-framework/memory-store.js

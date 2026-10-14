@@ -1,0 +1,11 @@
+[Unit]
+Description=Run QQ Bridge watchdog every 15 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitInactiveSec=15min
+Persistent=true
+Unit=nexp-watchdog.service
+
+[Install]
+WantedBy=timers.target

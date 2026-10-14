@@ -1,0 +1,8 @@
+[Unit]
+Description=nexp watchdog（检查桥接是否存活，死了就重启 nexp.service）
+After=nexp.service
+
+[Service]
+Type=oneshot
+# %h = 部署用户主目录；装在别处请改这里与 deploy/watchdog.sh 里的 APP_DIR
+ExecStart=/bin/bash %h/nexp/deploy/watchdog.sh

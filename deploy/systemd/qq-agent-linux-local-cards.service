@@ -1,0 +1,17 @@
+[Unit]
+Description=QQ Agent local patches guard (persona card + aliyun search after auto-update)
+
+[Service]
+Type=oneshot
+# %h = 部署用户主目录；本仓库不含 local/bin/ 下那两个脚本，需自行放置。
+# 只用打包好的运行时，不碰 PATH；每一步失败只记日志，绝不阻断更新链。
+# Key 已存在 data/config.json（0600）里，重放脚本会复用，不需要在这里传环境变量。
+ExecStart=-%h/qq-agent/app/.runtime/node-v22.23.2-linux-x64/bin/node %h/qq-agent/local/bin/apply-local-cards.mjs
+ExecStart=-%h/qq-agent/app/.runtime/node-v22.23.2-linux-x64/bin/node %h/qq-agent/local/bin/apply-aliyun-search.mjs
+UMask=0077
+NoNewPrivileges=true
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=default.target

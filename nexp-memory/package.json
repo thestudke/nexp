@@ -1,0 +1,41 @@
+{
+  "name": "nexp-memory",
+  "version": "0.1.0",
+  "description": "给 QQ 聊天机器人用的文件化记忆框架：原子事实存储 + 相关性检索 + 快照归档 + 关键词回溯。零依赖、纯文本、可单测。",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./store": "./src/store.js",
+    "./retrieval": "./src/retrieval.js",
+    "./archive": "./src/archive.js"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "test:store": "node --test test/store.test.mjs",
+    "test:retrieval": "node --test test/retrieval.test.mjs",
+    "test:archive": "node --test test/archive.test.mjs",
+    "bench": "node test/benchmark-real.mjs"
+  },
+  "keywords": [
+    "qq-bot",
+    "memory",
+    "obsidian",
+    "markdown",
+    "retrieval",
+    "llm",
+    "agent",
+    "qq"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}
